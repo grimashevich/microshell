@@ -15,7 +15,7 @@ typedef struct s_cmd
 
 typedef struct s_series
 {
-	t_cmd			*first;
+	t_cmd			*cmd;
 	struct s_series	*next;
 } t_series;
 
@@ -26,24 +26,64 @@ void exit_fatal(void)
 	exit(1);
 }
 
-t_series *parse_argv(char **argv)
+t_series	*create_series(void)
 {
-	int i = 1;
 	t_series *series;
-	t_series *tmp;
-
-	if (argv[i] == NULL)
-		return (NULL);
 
 	series = malloc(sizeof(t_series));
 	if (series == NULL)
 		exit_fatal();
+	series->cmd = NULL;
+	series->next = NULL;
+	return (series);
+}
 
+t_cmd	*create_cmd(void)
+{
+	t_cmd	*cmd = malloc(sizeof(t_cmd));
+
+	if (cmd == NULL)
+		exit_fatal();
+	cmd->path = NULL;
+	cmd->args = NULL;
+	cmd->next = NULL;
+	return (cmd);
+}
+
+t_series *parse_argv(char **argv)
+{
+	int i = 1;
+	t_series 	*series;
+	t_series 	*curr_series;
+	t_cmd		*curr_cmd;
+
+	if (argv[i] == NULL)
+		return (NULL);
+
+	series = create_series();
+	curr_series = series;
+	curr_cmd = NULL;
 	while (argv[i])
 	{
 		
 		if (strcmp(argv[i], ";") == 0) // Когда встретили новую серию команд после ;
-		//TODO останавился тут
+		{
+			curr_series->next = create_series();
+			curr_series = curr_series->next;
+		}
+		else if (strcmp(argv[i], "|") == 0) // Когда встретили пайп
+		{
+
+		}
+		else // Если встретили команду или аргумент
+		{
+			if (curr_cmd == NULL)
+			{
+				curr_cmd = create_cmd();
+				curr_cmd->path = argv[i];
+				
+			}
+		}
 		i++;
 	}
 	
