@@ -4,6 +4,8 @@
 
 #include <stdio.h>
 
+int ft_strlen(char *str);
+
 typedef struct s_cmd
 {
 	char			*path;
@@ -17,6 +19,35 @@ typedef struct s_series
 	struct s_series	*next;
 } t_series;
 
+
+void exit_fatal(void)
+{
+	write("error: fatal", 2, 12);
+	exit(1);
+}
+
+t_series *parse_argv(char **argv)
+{
+	int i = 1;
+	t_series *series;
+	t_series *tmp;
+
+	if (argv[i] == NULL)
+		return (NULL);
+
+	series = malloc(sizeof(t_series));
+	if (series == NULL)
+		exit_fatal();
+
+	while (argv[i])
+	{
+		
+		if (strcmp(argv[i], ";") == 0) // Когда встретили новую серию команд после ;
+		//TODO останавился тут
+		i++;
+	}
+	
+}
 
 int ft_strlen(char *str)
 {
