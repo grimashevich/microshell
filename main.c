@@ -5,12 +5,12 @@
 #include <stdio.h>
 
 int ft_strlen(char *str);
+void exit_fatal(void);
 
 typedef struct s_cmd
 {
-	char			*path;
 	char			**args;
-	struct s_prog	*next;
+	struct s_cmd	*next;
 } t_cmd;
 
 typedef struct s_series
@@ -20,9 +20,43 @@ typedef struct s_series
 } t_series;
 
 
+
+int get_text_len(char **text)
+{
+	int i = 0;
+
+	if (text == NULL)
+		return (0);
+	while (text[i])
+		i++;
+	return (i);
+}
+
+char **add_str_to_text(char **text, char *str)
+{
+	int		text_len;
+	int		i = 0;
+	char	**new_text;
+
+	text_len = get_text_len(text);
+	new_text = malloc(sizeof(char *) * (text_len + 2));
+	if (! new_text)
+		exit_fatal();
+	while (i < text_len)
+	{
+		new_text[i] = text[i];
+		i++;
+	}
+	new_text[i] = str;
+	new_text[i + 1] = NULL;
+	if (text)
+		free(text);
+	return (new_text);
+}
+
 void exit_fatal(void)
 {
-	write("error: fatal", 2, 12);
+	write(2, "error: fatal", 12);
 	exit(1);
 }
 
@@ -44,50 +78,46 @@ t_cmd	*create_cmd(void)
 
 	if (cmd == NULL)
 		exit_fatal();
-	cmd->path = NULL;
 	cmd->args = NULL;
 	cmd->next = NULL;
 	return (cmd);
 }
 
-t_series *parse_argv(char **argv)
+
+t_series	*parse_argv(char **argv)
 {
 	int i = 1;
-	t_series 	*series;
-	t_series 	*curr_series;
-	t_cmd		*curr_cmd;
-
-	if (argv[i] == NULL)
-		return (NULL);
-
-	series = create_series();
-	curr_series = series;
-	curr_cmd = NULL;
+	t_series *start_series = create_series();
+	t_series *curr_seies = start_series;
+	t_cmd *curr_cmd = create_cmd();
+	if (! start_series || ! curr_cmd)
+		exit_fatal();
+	curr_seies->cmd = curr_cmd;
 	while (argv[i])
 	{
-		
-		if (strcmp(argv[i], ";") == 0) // Когда встретили новую серию команд после ;
+		if (argv[i][0] == ';')
 		{
-			curr_series->next = create_series();
-			curr_series = curr_series->next;
+			curr_seies->next = create_series();
+			curr_seies = curr_seies->next;
+			curr_cmd = create_cmd();
+			curr_seies->cmd = curr_cmd;
 		}
-		else if (strcmp(argv[i], "|") == 0) // Когда встретили пайп
+		else if (argv[i][0] == '|')
 		{
-
+			curr_cmd->next = create_cmd();
+			curr_cmd = curr_cmd->next;
 		}
-		else // Если встретили команду или аргумент
+		else
 		{
-			if (curr_cmd == NULL)
-			{
-				curr_cmd = create_cmd();
-				curr_cmd->path = argv[i];
-				
-			}
+			curr_cmd->args = add_str_to_text(curr_cmd->args, argv[i]);
 		}
-		i++;
+		i++;		
 	}
 	
+	return (start_series);
 }
+
+
 
 int ft_strlen(char *str)
 {
@@ -125,6 +155,9 @@ int my_cd(char *path)
 
 int main(int argc, char **argv, char **envp)
 {
+	t_series	*series = parse_argv(argv);
+	
+	return (0);
 	print_text(argv);
 	write(1, "\nDONE\n", 6);
 	return 0;
@@ -134,5 +167,6 @@ int main(int argc, char **argv, char **envp)
 		scanf("%s", str);
 		printf("cd exit code = %d\n", my_cd(str));
 	}
-	
+
+	return (0);	
 }
