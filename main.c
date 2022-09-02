@@ -4,8 +4,6 @@
 
 #include <stdio.h>
 
-int ft_strlen(char *str);
-void exit_fatal(void);
 
 typedef struct s_cmd
 {
@@ -18,6 +16,12 @@ typedef struct s_series
 	t_cmd			*cmd;
 	struct s_series	*next;
 } t_series;
+
+
+int ft_strlen(char *str);
+void exit_fatal(void);
+void print_cmd(t_cmd *cmd);
+void print_args(char **args);
 
 
 int get_text_len(char **text)
@@ -55,7 +59,7 @@ char **add_str_to_text(char **text, char *str)
 
 void exit_fatal(void)
 {
-	write(2, "error: fatal", 12);
+	write(2, "error: fatal\n", 13);
 	exit(1);
 }
 
@@ -112,7 +116,6 @@ t_series	*parse_argv(char **argv)
 		}
 		i++;		
 	}
-	
 	return (start_series);
 }
 
@@ -150,19 +153,63 @@ int get_cmd_count(t_cmd *cmd)
 	return (i);
 }
 
-void exec_cmd(t_cmd *cmd)
+void close_pipes(int fd[2][2])
+{
+	close(fd[0][0]);
+	close(fd[0][1]);
+	close(fd[1][0]);
+	close(fd[1][1]);
+}
+
+void exec_cmd(t_cmd *cmd, char **envp)
 {
 	int 	*pids;
 	int 	i = 0;
+	int		pipes[2][2];
 
 	pids = malloc(sizeof(int) * get_cmd_count(cmd));
+
 	while (cmd)
 	{
-		pids[i++]
-		//todo останавился тут
+		print_args(cmd->args);
+		pipe(pipes[i % 2]);
+		pids[i] = fork();
+		if (pids[i] == 0)
+		{
+			if (i == 0)
+			{
+				dup2(pipes[i % 2][1], 1);
+				close(pipes[i % 2][0]);
+				close(pipes[! (i % 2)][0]);
+				close(pipes[! (i % 2)][1]);
+			}
+			else if (cmd->next != NULL)
+			{
+				dup2(pipes[i % 2][1], 1);
+				dup2(pipes[!(i % 2)][0], 0);
+				close(pipes[i % 2][0]);
+				close(pipes[!(i % 2)][1]);
+			}
+			else
+			{
+				dup2(pipes[! (i % 2)][0], 0);
+				close(pipes[i % 2][0]);
+				close(pipes[i % 2][1]);
+				close(pipes[! (i % 2)][1]);
+			}
+			execve(cmd->args[0], cmd->args, envp);
+			exit_fatal();
+		}
+		else
+		{
+			close(pipes[! (i % 2)][0]);
+			close(pipes[! (i % 2)][1]);	
+		}
+		i++;
 		cmd = cmd->next;
 	}
-	
+	close_pipes(pipes);
+//TODO waitpid
 }
 
 
@@ -171,8 +218,45 @@ void executor(t_series *series, char **envp)
 	int	i = 0;
 	while (series)
 	{
-		exec_cmd(series->cmd);
+		exec_cmd(series->cmd, envp);
 		series = series->next;
+	}
+	
+}
+
+void print_args(char **args)
+{
+	int i = 0;
+	while (args[i])
+	{
+		printf("%s ", args[i++]);
+	}
+	printf("\n");
+}
+
+void print_cmd(t_cmd *cmd)
+{
+	
+	while (cmd)
+	{
+		print_args(cmd->args);
+		if (cmd->next != NULL)
+			printf("- - - PIPE - - -\n");
+		else
+			printf("\n");
+		cmd = cmd->next;
+	}
+}
+
+void print_series(t_series *series)
+{
+	int i = 0;
+	while (series)
+	{
+		printf("\nSERIES: %d\n", i);
+		print_cmd(series->cmd);
+		series = series->next;
+		i++;
 	}
 	
 }
@@ -181,9 +265,8 @@ void executor(t_series *series, char **envp)
 int main(int argc, char **argv, char **envp)
 {
 	t_series	*series = parse_argv(argv);
-	
+	executor(series, envp);
 	return (0);
-	print_text(argv);
 	write(1, "\nDONE\n", 6);
 	return 0;
 	char *str = malloc(128);
@@ -195,3 +278,10 @@ int main(int argc, char **argv, char **envp)
 
 	return (0);	
 }
+
+
+
+/* 
+
+./a.out /bin/echo 111 "|" /bin/echo 222 "|" /bin/echo 333
+ */
