@@ -20,7 +20,6 @@ typedef struct s_series
 } t_series;
 
 
-
 int get_text_len(char **text)
 {
 	int i = 0;
@@ -117,8 +116,6 @@ t_series	*parse_argv(char **argv)
 	return (start_series);
 }
 
-
-
 int ft_strlen(char *str)
 {
 	int n = 0;
@@ -129,17 +126,6 @@ int ft_strlen(char *str)
 	}
 	return (n);
 }
-void print_text(char **text)
-{
-	while (*text)
-	{
-		write(1, *text, ft_strlen(*text));
-		write(1, "\n", 1);
-		text++;
-	}
-}
-
-
 
 int my_cd(char *path)
 {
@@ -152,6 +138,45 @@ int my_cd(char *path)
 	}
 	return (0);
 }
+
+int get_cmd_count(t_cmd *cmd)
+{
+	int i = 0;
+	while (cmd)
+	{
+		cmd = cmd->next;
+		i++;
+	}
+	return (i);
+}
+
+void exec_cmd(t_cmd *cmd)
+{
+	int 	*pids;
+	int 	i = 0;
+
+	pids = malloc(sizeof(int) * get_cmd_count(cmd));
+	while (cmd)
+	{
+		pids[i++]
+		//todo останавился тут
+		cmd = cmd->next;
+	}
+	
+}
+
+
+void executor(t_series *series, char **envp)
+{
+	int	i = 0;
+	while (series)
+	{
+		exec_cmd(series->cmd);
+		series = series->next;
+	}
+	
+}
+
 
 int main(int argc, char **argv, char **envp)
 {
