@@ -171,7 +171,6 @@ void exec_cmd(t_cmd *cmd, char **envp)
 
 	while (cmd)
 	{
-		print_args(cmd->args);
 		pipe(pipes[i % 2]);
 		pids[i] = fork();
 		if (pids[i] == 0)
@@ -197,7 +196,11 @@ void exec_cmd(t_cmd *cmd, char **envp)
 				close(pipes[i % 2][1]);
 				close(pipes[! (i % 2)][1]);
 			}
+/* 			printf("...I'm in fork # %d\n", i);
+			print_args(cmd->args);
+			exit(0); */
 			execve(cmd->args[0], cmd->args, envp);
+			write(2, "WARNING!\n", 9);
 			exit_fatal();
 		}
 		else
@@ -283,5 +286,7 @@ int main(int argc, char **argv, char **envp)
 
 /* 
 
-./a.out /bin/echo 111 "|" /bin/echo 222 "|" /bin/echo 333
+./a.out /bin/ls "|" /usr/bin/grep t "|" /usr/bin/wc
+
+ ls | grep t | wc
  */

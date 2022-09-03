@@ -10,7 +10,7 @@
 			"name": "Debug",
 			"program": "${workspaceFolder}/a.out",
 			//"args": ["/bin/ls", "|", "/usr/bin/grep", "microshell", ";", "/bin/echo", "i", "love", "my", "microshell"],
-			"args": ["/bin/ls", "|", "/usr/bin/grep", "a.out"],
+			"args": ["/bin/echo", "111", "|", "/bin/echo", "222", "|", "/bin/echo", "333"],
 			"preLaunchTask": "build",
 			"cwd": "${workspaceFolder}"
 		}
