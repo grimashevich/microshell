@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
 #include <stdio.h>
 
 
@@ -22,7 +21,6 @@ int ft_strlen(char *str);
 void exit_fatal(void);
 void print_cmd(t_cmd *cmd);
 void print_args(char **args);
-
 
 int get_text_len(char **text)
 {
@@ -63,6 +61,14 @@ void exit_fatal(void)
 	exit(1);
 }
 
+void exit_execve(char *exec_name)
+{
+	write(2, "error: cannot execute ", 23);
+	write(2, exec_name, ft_strlen(exec_name));
+	write(2, "\n", 1);
+	exit(1);
+}
+
 t_series	*create_series(void)
 {
 	t_series *series;
@@ -85,7 +91,6 @@ t_cmd	*create_cmd(void)
 	cmd->next = NULL;
 	return (cmd);
 }
-
 
 t_series	*parse_argv(char **argv)
 {
@@ -153,12 +158,20 @@ int get_cmd_count(t_cmd *cmd)
 	return (i);
 }
 
-void close_pipes(int fd[2][2])
+void close_pipes(int fd[2][2], int i)
 {
 	close(fd[0][0]);
 	close(fd[0][1]);
-	close(fd[1][0]);
-	close(fd[1][1]);
+	if (i > 0)
+	{
+		close(fd[1][0]);
+		close(fd[1][1]);
+	}
+}
+
+void error_cd(void)
+{
+	write(2, "error: cd: bad arguments\n", 26);
 }
 
 void exec_cmd(t_cmd *cmd, char **envp)
@@ -166,6 +179,17 @@ void exec_cmd(t_cmd *cmd, char **envp)
 	int 	*pids;
 	int 	i = 0;
 	int		pipes[2][2];
+
+	if (strcmp(cmd->args[0], "cd") == 0)
+	{
+		if (get_text_len(cmd->args) != 2)
+		{
+			error_cd();
+			return;
+		}
+		my_cd(cmd->args[1]);
+		return;
+	}
 
 	pids = malloc(sizeof(int) * get_cmd_count(cmd));
 
@@ -177,10 +201,11 @@ void exec_cmd(t_cmd *cmd, char **envp)
 		{
 			if (i == 0)
 			{
-				dup2(pipes[i % 2][1], 1);
+				if (cmd->next != NULL)
+					dup2(pipes[i % 2][1], 1);
+				else
+					close(pipes[i % 2][1]);
 				close(pipes[i % 2][0]);
-				close(pipes[! (i % 2)][0]);
-				close(pipes[! (i % 2)][1]);
 			}
 			else if (cmd->next != NULL)
 			{
@@ -194,27 +219,31 @@ void exec_cmd(t_cmd *cmd, char **envp)
 				dup2(pipes[! (i % 2)][0], 0);
 				close(pipes[i % 2][0]);
 				close(pipes[i % 2][1]);
-				close(pipes[! (i % 2)][1]);
+				close(pipes[!(i % 2)][1]);
 			}
-/* 			printf("...I'm in fork # %d\n", i);
-			print_args(cmd->args);
-			exit(0); */
-			execve(cmd->args[0], cmd->args, envp);
-			write(2, "WARNING!\n", 9);
+			if (execve(cmd->args[0], cmd->args, envp) == -1)
+			{
+				exit_execve(cmd->args[0]);
+			}
 			exit_fatal();
 		}
-		else
+		else // main process
 		{
-			close(pipes[! (i % 2)][0]);
-			close(pipes[! (i % 2)][1]);	
+			if (i > 0)
+			{
+				close(pipes[! (i % 2)][0]);
+				close(pipes[! (i % 2)][1]);	
+			}
 		}
 		i++;
 		cmd = cmd->next;
-	}
-	close_pipes(pipes);
-//TODO waitpid
-}
 
+	}
+	close_pipes(pipes, i);
+	while (i >= 0)
+		waitpid(pids[i--], NULL, 0);
+	free(pids);
+}
 
 void executor(t_series *series, char **envp)
 {
@@ -227,58 +256,37 @@ void executor(t_series *series, char **envp)
 	
 }
 
-void print_args(char **args)
+void free_cmd(t_cmd *cmd)
 {
-	int i = 0;
-	while (args[i])
-	{
-		printf("%s ", args[i++]);
-	}
-	printf("\n");
-}
-
-void print_cmd(t_cmd *cmd)
-{
-	
+	t_cmd *tmp;
 	while (cmd)
 	{
-		print_args(cmd->args);
-		if (cmd->next != NULL)
-			printf("- - - PIPE - - -\n");
-		else
-			printf("\n");
+		tmp = cmd;
 		cmd = cmd->next;
-	}
-}
-
-void print_series(t_series *series)
-{
-	int i = 0;
-	while (series)
-	{
-		printf("\nSERIES: %d\n", i);
-		print_cmd(series->cmd);
-		series = series->next;
-		i++;
+		free(tmp->args);
+		free(tmp);
 	}
 	
 }
 
+void free_series(t_series *series)
+{
+	t_series *tmp;
+	
+	while (series)
+	{
+		tmp = series;
+		series = series->next;
+		free_cmd(tmp->cmd);
+		free(tmp);
+	}
+}
 
 int main(int argc, char **argv, char **envp)
 {
 	t_series	*series = parse_argv(argv);
 	executor(series, envp);
-	return (0);
-	write(1, "\nDONE\n", 6);
-	return 0;
-	char *str = malloc(128);
-	while (1)
-	{
-		scanf("%s", str);
-		printf("cd exit code = %d\n", my_cd(str));
-	}
-
+	free_series(series);
 	return (0);	
 }
 
@@ -286,7 +294,7 @@ int main(int argc, char **argv, char **envp)
 
 /* 
 
-./a.out /bin/ls "|" /usr/bin/grep t "|" /usr/bin/wc
-
- ls | grep t | wc
+leaks --atExit -- ./a.out /bin/ls "|" /usr/bin/grep t "|" /usr/bin/wc ";" /bin/echo strnig 2 ";" /bin/ls ";" /bin/echo 1 2 3 4 5
+ 
+ ./microshell /bin/ls a.out "|" /usr/bin/grep micro "|" /bin/cat -n ; /bin/echo dernier ; /bin/echo
  */
